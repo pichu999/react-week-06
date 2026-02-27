@@ -52,11 +52,24 @@ function Cart() {
     }
   };
 
+  const delAllCart = async () => {
+    try {
+      const res = await axios.delete(`${API_BASE}/api/${API_PATH}/carts`);
+      getCart();
+    } catch {
+      alert("刪除購物車失敗");
+    }
+  };
+
   return (
     <div className="container">
       <h2 className="mt-3">購物車列表</h2>
       <div className="text-end mt-4">
-        <button type="button" className="btn btn-outline-danger">
+        <button
+          type="button"
+          className="btn btn-outline-danger"
+          onClick={() => delAllCart()}
+        >
           清空購物車
         </button>
       </div>
