@@ -80,30 +80,13 @@ function Checkout() {
       const res = await axios.post(`${API_BASE}/api/${API_PATH}/cart`, {
         data,
       });
-      const cartRes = await axios.get(`${API_BASE}/api/${API_PATH}/cart`);
-      setCart(cartRes.data.data);
+      getCart();
     } catch {
       alert("加入購物車失敗");
     } finally {
       setLoadingCardId(null);
     }
   };
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({ mode: "onChange" });
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      getCart();
-    }, 0);
-
-    return () => {
-      clearTimeout(timer);
-    };
-  }, []);
 
   const updateCart = async (cartId, productId, qty = 1) => {
     try {
@@ -140,6 +123,12 @@ function Checkout() {
       alert("刪除購物車失敗");
     }
   };
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({ mode: "onChange" });
 
   const onSubmit = async (formData) => {
     try {
