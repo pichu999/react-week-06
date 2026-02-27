@@ -1,18 +1,65 @@
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { TailSpin } from "react-loader-spinner";
+import * as bootstrap from "bootstrap";
+import SingleProductModal from "../../components/SingleProductModal";
 
 const API_BASE = import.meta.env.VITE_API_BASE;
 const API_PATH = import.meta.env.VITE_API_PATH;
 
 function Checkout() {
+  const [product, setProduct] = useState({});
+  const [products, setProducts] = useState([]);
   const [cart, setCart] = useState();
+  const [loadingCardId, setLoadingCardId] = useState(null);
+  const [loadingProductId, setLoadingProductId] = useState(null);
+  const productModalRef = useRef(null);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm({ mode: "onChange" });
+  useEffect(() => {
+    const getProducts = async () => {
+      try {
+        const response = await axios.get(
+          `${API_BASE}/api/${API_PATH}/products`,
+        );
+        setProducts(response.data.products);
+      } catch {
+        alert("取得產品失敗");
+      }
+    };
+    getProducts();
+    getCart();
+
+    productModalRef.current = new bootstrap.Modal("#productModal", {
+      keyboard: false,
+    });
+    // Modal 關閉時移除焦點
+    document
+      .querySelector("#productModal")
+      .addEventListener("hide.bs.modal", () => {
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+      });
+  }, []);
+
+  const handleView = async (id) => {
+    setLoadingProductId(id);
+    try {
+      const res = await axios.get(`${API_BASE}/api/${API_PATH}/product/${id}`);
+      setProduct(res.data.product);
+    } catch {
+      alert("取得產品失敗");
+    } finally {
+      setLoadingProductId(null);
+    }
+
+    productModalRef.current.show();
+  };
+
+  const closeProductModal = () => {
+    productModalRef.current.hide();
+  };
 
   const getCart = async () => {
     try {
@@ -22,6 +69,31 @@ function Checkout() {
       alert("取得購物車列表失敗");
     }
   };
+
+  const addToCart = async (id, qty = 1) => {
+    setLoadingCardId(id);
+    try {
+      const data = {
+        product_id: id,
+        qty,
+      };
+      const res = await axios.post(`${API_BASE}/api/${API_PATH}/cart`, {
+        data,
+      });
+      const cartRes = await axios.get(`${API_BASE}/api/${API_PATH}/cart`);
+      setCart(cartRes.data.data);
+    } catch {
+      alert("加入購物車失敗");
+    } finally {
+      setLoadingCardId(null);
+    }
+  };
+
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm({ mode: "onChange" });
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -69,8 +141,8 @@ function Checkout() {
       const res = await axios.post(`${API_BASE}/api/${API_PATH}/order`, {
         data,
       });
-      const res2 = await axios.get(`${API_BASE}/api/${API_PATH}/cart`);
-      setCart(res2.data.data);
+      const cartRes = await axios.get(`${API_BASE}/api/${API_PATH}/cart`);
+      setCart(cartRes.data.data);
     } catch {
       alert("訂單送出失敗");
     }
@@ -78,6 +150,70 @@ function Checkout() {
 
   return (
     <div className="container">
+      {/* 產品列表 */}
+      <table className="table align-middle">
+        <thead>
+          <tr>
+            <th>圖片</th>
+            <th>商品名稱</th>
+            <th>價格</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map((product) => (
+            <tr key={product.id}>
+              <td style={{ width: "200px" }}>
+                <div
+                  style={{
+                    height: "100px",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    backgroundImage: `url(${product.imageUrl})`,
+                  }}
+                ></div>
+              </td>
+              <td>{product.title}</td>
+              <td>
+                <del className="h6">
+                  原價：{product.origin_price.toLocaleString()}
+                </del>
+                <div className="h5">
+                  特價：$NT {product.price.toLocaleString()}
+                </div>
+              </td>
+              <td>
+                <div className="btn-group btn-group-sm">
+                  <button
+                    type="button"
+                    className="btn btn-outline-secondary"
+                    onClick={() => handleView(product.id)}
+                    disabled={loadingProductId === product.id}
+                  >
+                    {loadingProductId === product.id ? (
+                      <TailSpin color="gray" weight={80} height={16} />
+                    ) : (
+                      "查看更多"
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-outline-danger"
+                    onClick={() => addToCart(product.id)}
+                    disabled={loadingCardId === product.id}
+                  >
+                    {loadingCardId === product.id ? (
+                      <TailSpin color="gray" weight={80} height={16} />
+                    ) : (
+                      "加到購物車"
+                    )}
+                  </button>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
       <h2 className="mt-3">購物車列表</h2>
       <div className="text-end mt-4">
         <button type="button" className="btn btn-outline-danger">
@@ -256,6 +392,12 @@ function Checkout() {
           </div>
         </form>
       </div>
+
+      <SingleProductModal
+        product={product}
+        addToCart={addToCart}
+        closeModal={closeProductModal}
+      />
     </div>
   );
 }
